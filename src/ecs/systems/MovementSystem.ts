@@ -2,24 +2,28 @@ import type { World } from "@/ecs/World";
 import { POSITION, type Position } from "@/ecs/components/Position";
 import { VELOCITY, type Velocity } from "@/ecs/components/Velocity";
 import { COLLIDER, type Collider } from "@/ecs/components/Collider";
-import { GRAVITY, MAX_FALL_SPEED, TILE_SIZE } from "@/constants/config";
+import { GRAVITY, MAX_FALL_SPEED, TILE_SIZE, MS_PER_TICK } from "@/constants/config";
 import type { TerrainData } from "@/terrain/TerrainData";
 
 export function createMovementSystem(terrain: TerrainData) {
-  return (world: World, _dt: number): void => {
+  return (world: World, dt: number): void => {
+    const scale = dt / MS_PER_TICK;
     const entities = world.queryAll(POSITION, VELOCITY);
     for (const id of entities) {
       const pos = world.getComponent<Position>(id, POSITION)!;
       const vel = world.getComponent<Velocity>(id, VELOCITY)!;
       const col = world.getComponent<Collider>(id, COLLIDER);
 
-      // Apply gravity
-      vel.vy = Math.min(vel.vy + GRAVITY, MAX_FALL_SPEED);
+      // Apply gravity (scaled by timestep)
+      vel.vy = Math.min(vel.vy + GRAVITY * scale, MAX_FALL_SPEED);
       vel.onGround = false;
+
+      const dx = vel.vx * scale;
+      const dy = vel.vy * scale;
 
       if (col) {
         // Resolve horizontal movement
-        const newX = pos.x + vel.vx;
+        const newX = pos.x + dx;
         if (!collidesWithTerrain(terrain, newX, pos.y, col)) {
           pos.x = newX;
         } else {
@@ -27,7 +31,7 @@ export function createMovementSystem(terrain: TerrainData) {
         }
 
         // Resolve vertical movement
-        const newY = pos.y + vel.vy;
+        const newY = pos.y + dy;
         if (!collidesWithTerrain(terrain, pos.x, newY, col)) {
           pos.y = newY;
         } else {
@@ -41,8 +45,8 @@ export function createMovementSystem(terrain: TerrainData) {
           vel.vy = 0;
         }
       } else {
-        pos.x += vel.vx;
-        pos.y += vel.vy;
+        pos.x += dx;
+        pos.y += dy;
       }
     }
   };

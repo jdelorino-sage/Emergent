@@ -13,11 +13,23 @@ import { dayNightSystem } from "@/ecs/systems/DayNightSystem";
 import { createPlayer } from "@/entities/createPlayer";
 import { createCitizen } from "@/entities/createCitizen";
 import { POSITION, type Position } from "@/ecs/components/Position";
-import { TILE_SIZE } from "@/constants/config";
+import { TILE_SIZE, SURFACE_Y, DAY_DURATION, NIGHT_DURATION } from "@/constants/config";
+import type { TerrainData } from "@/terrain/TerrainData";
 import { useGameStore } from "@/store/gameStore";
 
 let gameLoop: GameLoop | null = null;
 let input: InputManager | null = null;
+let onResize: (() => void) | null = null;
+
+/** Find the Y tile coordinate of the first solid block at the given X tile */
+function findSurfaceY(terrain: TerrainData, tileX: number): number {
+  for (let y = 0; y < terrain.height; y++) {
+    if (terrain.isSolid(tileX, y)) {
+      return y;
+    }
+  }
+  return SURFACE_Y; // fallback
+}
 
 export async function initGame(container: HTMLElement): Promise<void> {
   const app = await createPixiApp(container);
@@ -30,7 +42,7 @@ export async function initGame(container: HTMLElement): Promise<void> {
   const camera = new Camera(app.screen.width, app.screen.height);
 
   // Handle resize
-  const onResize = () => camera.resize(app.screen.width, app.screen.height);
+  onResize = () => camera.resize(app.screen.width, app.screen.height);
   window.addEventListener("resize", onResize);
 
   // Terrain renderer
@@ -47,17 +59,11 @@ export async function initGame(container: HTMLElement): Promise<void> {
   // Input
   input = new InputManager(container);
 
-  // Find a spawn point: middle of map, on the surface
+  // Spawn player at middle of map, 2 tiles above surface (player is 2 tiles tall)
   const spawnX = Math.floor(terrain.width / 2);
-  let spawnY = 0;
-  for (let y = 0; y < terrain.height; y++) {
-    if (terrain.isSolid(spawnX, y)) {
-      spawnY = y - 2; // 2 tiles above first solid block (player is 2 tiles tall)
-      break;
-    }
-  }
+  const spawnSurfaceY = findSurfaceY(terrain, spawnX);
+  const spawnY = spawnSurfaceY - 2;
 
-  // Create player
   const playerId = createPlayer(
     world,
     entityLayer,
@@ -66,16 +72,18 @@ export async function initGame(container: HTMLElement): Promise<void> {
   );
 
   // Create 3 citizens near spawn
-  for (let i = 0; i < 3; i++) {
-    const cx = (spawnX + 3 + i * 4) * TILE_SIZE;
-    let cy = 0;
-    for (let y = 0; y < terrain.height; y++) {
-      if (terrain.isSolid(spawnX + 3 + i * 4, y)) {
-        cy = (y - 2) * TILE_SIZE;
-        break;
-      }
-    }
-    createCitizen(world, entityLayer, cx, cy);
+  const CITIZEN_COUNT = 3;
+  const CITIZEN_OFFSET = 3;
+  const CITIZEN_SPACING = 4;
+  for (let i = 0; i < CITIZEN_COUNT; i++) {
+    const citizenTileX = spawnX + CITIZEN_OFFSET + i * CITIZEN_SPACING;
+    const citizenSurfaceY = findSurfaceY(terrain, citizenTileX);
+    createCitizen(
+      world,
+      entityLayer,
+      citizenTileX * TILE_SIZE,
+      (citizenSurfaceY - 2) * TILE_SIZE,
+    );
   }
 
   // Register ECS systems
@@ -100,6 +108,20 @@ export async function initGame(container: HTMLElement): Promise<void> {
       camera.centerOn(playerPos.x, playerPos.y);
     }
 
+    // Update sky color based on day/night cycle
+    const { isDay, timeOfDay } = useGameStore.getState();
+    if (isDay) {
+      terrainRenderer.skyColor = 0x87ceeb; // day sky blue
+    } else {
+      // Lerp to dark blue at night
+      const nightProgress = (timeOfDay - DAY_DURATION) / NIGHT_DURATION;
+      const midNight = nightProgress < 0.5 ? nightProgress * 2 : (1 - nightProgress) * 2;
+      const r = Math.floor(0x87 * (1 - midNight * 0.8));
+      const g = Math.floor(0xce * (1 - midNight * 0.85));
+      const b = Math.floor(0xeb * (1 - midNight * 0.5));
+      terrainRenderer.skyColor = (r << 16) | (g << 8) | b;
+    }
+
     // Update terrain tiles
     terrainRenderer.update();
 
@@ -115,5 +137,9 @@ export function cleanupGame(): void {
   gameLoop = null;
   input?.destroy();
   input = null;
+  if (onResize) {
+    window.removeEventListener("resize", onResize);
+    onResize = null;
+  }
   destroyPixiApp();
 }

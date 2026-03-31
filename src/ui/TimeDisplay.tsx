@@ -6,9 +6,9 @@ export function TimeDisplay() {
   const isDay = useGameStore((s) => s.isDay);
 
   const progress = timeOfDay / FULL_CYCLE;
-  const hours = Math.floor(progress * 24) + 6; // 6am start
-  const displayHour = ((hours - 1) % 12) + 1;
-  const ampm = hours % 24 < 12 ? "AM" : "PM";
+  const totalHours = (Math.floor(progress * 24) + 6) % 24;
+  const displayHour = totalHours === 0 ? 12 : totalHours > 12 ? totalHours - 12 : totalHours;
+  const ampm = totalHours >= 12 ? "PM" : "AM";
 
   return (
     <div

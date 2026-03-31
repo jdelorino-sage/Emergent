@@ -18,8 +18,9 @@ export class TerrainRenderer {
   private pool: TileSprite[] = [];
   private active = new Map<string, TileSprite>();
 
-  /** Sky background color — changes with day/night */
+  /** Sky background color — updated by day/night cycle */
   skyColor = 0x87ceeb;
+  private lastSkyColor = 0x87ceeb;
 
   constructor(terrain: TerrainData, camera: Camera) {
     this.container = new Container();
@@ -28,6 +29,17 @@ export class TerrainRenderer {
   }
 
   update(): void {
+    // If sky color changed, force redraw of air tiles
+    const skyChanged = this.skyColor !== this.lastSkyColor;
+    if (skyChanged) {
+      this.lastSkyColor = this.skyColor;
+      for (const sprite of this.active.values()) {
+        if (sprite.tileType === TileType.Air) {
+          this.drawTile(sprite.graphics, TileType.Air);
+        }
+      }
+    }
+
     const { startX, startY, endX, endY } = this.camera.getVisibleTileRange();
 
     // Mark tiles that are no longer visible for recycling

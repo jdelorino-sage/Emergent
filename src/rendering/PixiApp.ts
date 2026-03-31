@@ -8,13 +8,20 @@ export async function createPixiApp(
   if (app) return app;
 
   app = new Application();
-  await app.init({
-    resizeTo: container,
-    backgroundColor: 0x87ceeb,
-    antialias: false,
-    resolution: window.devicePixelRatio || 1,
-    autoDensity: true,
-  });
+  try {
+    await app.init({
+      resizeTo: container,
+      backgroundColor: 0x87ceeb,
+      antialias: false,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+    });
+  } catch (err) {
+    app = null;
+    throw new Error(
+      `Failed to initialize PixiJS: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   container.appendChild(app.canvas);
   return app;
