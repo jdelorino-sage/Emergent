@@ -31,12 +31,23 @@ function findSurfaceY(terrain: TerrainData, tileX: number): number {
   return SURFACE_Y; // fallback
 }
 
-export async function initGame(container: HTMLElement): Promise<void> {
-  const app = await createPixiApp(container);
-  const seed = useGameStore.getState().seed;
+export async function initGame(
+  container: HTMLElement,
+  onStatus?: (msg: string) => void,
+): Promise<void> {
+  const status = onStatus ?? (() => {});
 
-  // Generate terrain
+  status("Creating renderer...");
+  const app = await createPixiApp(container);
+
+  status("Generating terrain...");
+  const seed = useGameStore.getState().seed;
+  // Yield to the browser between heavy steps so the UI can update
+  await new Promise((r) => setTimeout(r, 0));
   const terrain = generateTerrain(seed);
+
+  status("Setting up world...");
+  await new Promise((r) => setTimeout(r, 0));
 
   // Camera — use container dimensions as fallback if app.screen reports 0
   const width = app.screen.width || container.clientWidth || 800;
@@ -92,6 +103,8 @@ export async function initGame(container: HTMLElement): Promise<void> {
   world.registerSystem(createPlayerControlSystem(input));
   world.registerSystem(createMovementSystem(terrain));
   world.registerSystem(dayNightSystem);
+
+  status("Starting game loop...");
 
   // Create and start game loop
   gameLoop = new GameLoop();

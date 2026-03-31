@@ -9,10 +9,20 @@ export async function createPixiApp(
 ): Promise<Application> {
   if (app) return app;
 
+  // Ensure the container has dimensions before PixiJS init
+  // (position:absolute containers may report 0 on first frame)
+  if (container.clientWidth === 0 || container.clientHeight === 0) {
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+
+  const width = container.clientWidth || window.innerWidth;
+  const height = container.clientHeight || window.innerHeight;
+
   app = new Application();
   try {
     await app.init({
-      resizeTo: container,
+      width,
+      height,
       backgroundColor: 0x87ceeb,
       antialias: false,
       resolution: window.devicePixelRatio || 1,
@@ -28,8 +38,13 @@ export async function createPixiApp(
 
   container.appendChild(app.canvas);
 
-  // Force a resize in case the container had 0 dimensions during init
-  app.resize();
+  // Set up auto-resize on window resize
+  const onResize = () => {
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || window.innerHeight;
+    app?.renderer.resize(w, h);
+  };
+  window.addEventListener("resize", onResize);
 
   return app;
 }

@@ -2,18 +2,32 @@ import { useRef, useEffect, useState } from "react";
 import { HUD } from "@/ui/HUD";
 import { initGame, cleanupGame } from "@/Game";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms / 1000}s`)),
+      ms,
+    );
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 export function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("Initializing...");
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || initialized.current) return;
     initialized.current = true;
 
-    initGame(el)
+    withTimeout(initGame(el, setStatus), 15000, "Game initialization")
       .then(() => setLoading(false))
       .catch((err) => {
         console.error("Game init failed:", err);
@@ -61,15 +75,18 @@ export function App() {
             position: "absolute",
             inset: 0,
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             color: "#fff",
             fontFamily: "monospace",
             fontSize: 18,
+            gap: 12,
             zIndex: 20,
           }}
         >
-          Loading EMERGENT...
+          <div>Loading EMERGENT...</div>
+          <div style={{ fontSize: 12, color: "#888" }}>{status}</div>
         </div>
       ) : (
         <HUD />
