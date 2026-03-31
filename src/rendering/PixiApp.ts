@@ -1,4 +1,6 @@
 import { Application } from "pixi.js";
+// Eagerly load browser environment extensions
+import "pixi.js/browser";
 
 let app: Application | null = null;
 

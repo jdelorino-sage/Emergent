@@ -7,10 +7,41 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #000; }
+      #loading-fallback {
+        position: fixed; inset: 0; display: flex; align-items: center;
+        justify-content: center; color: #fff; font-family: monospace;
+        font-size: 18px; z-index: 9999;
+      }
+      #error-fallback {
+        position: fixed; inset: 0; display: none; align-items: center;
+        justify-content: center; color: #ff4444; font-family: monospace;
+        font-size: 14px; z-index: 9999; padding: 32px; text-align: center;
+        background: rgba(0,0,0,0.9); flex-direction: column; gap: 16px;
+      }
     </style>
   </head>
   <body>
+    <div id="loading-fallback">Loading EMERGENT...</div>
+    <div id="error-fallback"></div>
     <div id="root"></div>
+    <script>
+      // Catch any errors that prevent the app from loading
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.getElementById('error-fallback');
+        el.style.display = 'flex';
+        el.innerHTML = '<div style="font-size:24px;margin-bottom:16px">Failed to load game</div>'
+          + '<div>' + msg + '</div>'
+          + '<div style="color:#888;font-size:12px">' + (src || '') + ' line ' + (line || '') + '</div>';
+        document.getElementById('loading-fallback').style.display = 'none';
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        var el = document.getElementById('error-fallback');
+        el.style.display = 'flex';
+        el.innerHTML = '<div style="font-size:24px;margin-bottom:16px">Failed to load game</div>'
+          + '<div>' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)) + '</div>';
+        document.getElementById('loading-fallback').style.display = 'none';
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
