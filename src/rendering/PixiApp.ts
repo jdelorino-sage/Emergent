@@ -15,6 +15,7 @@ export async function createPixiApp(
       antialias: false,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      preference: "webgl",
     });
   } catch (err) {
     app = null;
@@ -24,6 +25,10 @@ export async function createPixiApp(
   }
 
   container.appendChild(app.canvas);
+
+  // Force a resize in case the container had 0 dimensions during init
+  app.resize();
+
   return app;
 }
 

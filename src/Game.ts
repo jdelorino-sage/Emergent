@@ -38,8 +38,10 @@ export async function initGame(container: HTMLElement): Promise<void> {
   // Generate terrain
   const terrain = generateTerrain(seed);
 
-  // Camera
-  const camera = new Camera(app.screen.width, app.screen.height);
+  // Camera — use container dimensions as fallback if app.screen reports 0
+  const width = app.screen.width || container.clientWidth || 800;
+  const height = app.screen.height || container.clientHeight || 600;
+  const camera = new Camera(width, height);
 
   // Handle resize
   onResize = () => camera.resize(app.screen.width, app.screen.height);
